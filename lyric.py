@@ -25,6 +25,7 @@ class Music(db.Model):
 
 class Lyric(db.Model):
 	__tablename__= 'lyric'
+
 	id = db.Column(db.Integer, primary_key=True)
 	music_id = db.Column(db.String(32))
 	language = db.Column(db.String(1000))
@@ -36,6 +37,7 @@ def hello():
 @app.route("/music", methods=['GET'])
 def get_all_music():
 	musicList = db.session.query(Music).all()
+	print(musicList[0].name)
 	return str(musicList)
 
 if __name__ == "__main__":
