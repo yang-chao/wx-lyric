@@ -37,8 +37,16 @@ def hello():
 @app.route("/music", methods=['GET'])
 def get_all_music():
 	musicList = db.session.query(Music).all()
-	print(musicList[0].name)
-	return str(musicList)
+	musicArray = []
+	for music in musicList:
+		musicObj = {}
+		musicObj['id'] = music.id
+		musicObj['name'] = music.name
+		musicObj['artist'] = music.artist
+		musicObj['style'] = music.style
+		musicObj['language'] = music.language
+		musicArray.append(musicObj)
+	return Response(json.dumps(musicArray), mimetype="text/json")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=80, debug=True)
