@@ -29,6 +29,9 @@ class Lyric(db.Model):
 	music_id = db.Column(db.String(32))
 	language = db.Column(db.String(1000))
 
+@app.route("/")
+def hello():
+	return "hello world"
 
 @app.route("/music", methods=['GET'])
 def get_all_music():
