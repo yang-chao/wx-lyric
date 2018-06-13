@@ -33,8 +33,7 @@ class Lyric(db.Model):
 @app.route("/music", methods=['GET'])
 def get_all_music():
 	musicList = db.session.query(Music).all()
-    return str(rv)
-
+	return str(rv)
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host='0.0.0.0', port=80, debug=True)
