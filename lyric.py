@@ -1,6 +1,7 @@
 #coding:utf-8
 from flask import Flask, Response, request, render_template
 from flask_sqlalchemy import SQLAlchemy
+from spider import spider
 import json, md5
 
 app = Flask(__name__)
@@ -92,6 +93,11 @@ def add_music():
 		else:
 			result['code'] = 1
 		return Response(json.dumps(result), mimetype="text/json")
+
+@app.route('/artist/add')
+def insertArtists():
+	artists = spider.fetchArtists()
+	json.dumps(artists)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=80, debug=True)
