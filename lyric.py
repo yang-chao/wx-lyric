@@ -5,6 +5,7 @@ from spider import spider
 import json
 import md5
 import random
+import numpy as np
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -122,18 +123,21 @@ def insertArtists():
     return Response(json.loads('{"code": 0}'), mimetype="text/json")
 
 
-@app.route('/spider/music/add')
-def insertMusics():
-    allArtist = db.session.query(Artist).offset(100).limit(100).all()
-    for artist in allArtist:
-        hotMusics = spider.fetchMusics(artist.id)
-        for music in hotMusics:
-            newMusic = Music(id=music['id'], name=music['name'],
-                             artist=artist.name, album=music['al']['name'])
-            db.session.add(newMusic)
-    db.session.commit()
-    db.session.close()
-    return Response(json.loads('{"code": 0}'), mimetype="text/json")
+# @app.route('/spider/music/add')
+# def insertMusics():
+#     allArtist = db.session.query(Artist).offset(100).limit(100).all()
+#     print('allArtist length: ' + str(len(allArtist)))
+#     for artist in allArtist:
+#         hotMusics = spider.fetchMusics(artist.id)
+#         print('hotMusics id: ' + str(artist.id))
+#         print('hotMusics length: ' + str(len(hotMusics)))
+#         for music in hotMusics:
+#             newMusic = Music(id=music['id'], name=music['name'],
+#                              artist=artist.name, album=music['al']['name'])
+#             db.session.add(newMusic)
+#     db.session.commit()
+#     db.session.close()
+#     return Response(json.loads('{"code": 0}'), mimetype="text/json")
 
 
 @app.route('/topic')
@@ -148,20 +152,34 @@ def getTopic():
         # 查询歌曲
         musicResult = db.session.query(Music).filter(
             Music.id == r.music_id).first()
+        print('music name: ' + musicResult.name)
 
         # 查询歌手
         artistResult = db.session.query(Artist).filter(
             Artist.id == r.artist_id).first()
+        print('artist name: ' + artistResult.name)
 
         # 随机查询歌手的其它歌曲
         answer = []
-        connection = db.engine.connect()
-        for index in range(3):
-            musicSql = u"SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(id) FROM {table})-(SELECT MIN(id) FROM {table}))+(SELECT MIN(id) FROM {table})) AS id) AS t2 WHERE t1.id >= t2.id AND t1.artist = '{artist}' ORDER BY t1.id LIMIT 1;".format(
-                table='music',
-                artist=artistResult.name)
-            randomMusic = connection.execute(musicSql).first()
-            answer.append(randomMusic.name)
+        # connection = db.engine.connect()
+        # for index in range(3):
+        #     musicSql = u"SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(id) FROM {table})-(SELECT MIN(id) FROM {table}))+(SELECT MIN(id) FROM {table})) AS id) AS t2 WHERE t1.id >= t2.id AND t1.artist = '{artist}' ORDER BY t1.id LIMIT 1;".format(
+        #         table='music',
+        #         artist=artistResult.name)
+        #     randomMusic = connection.execute(musicSql).first()
+        #     print('index: ' + str(index))
+        #     answer.append(randomMusic.name)
+ 
+        wrongAnswers = db.session.query(Music).filter(Music.artist==artistResult.name, 
+            Music.artist!=musicResult.name).all()
+
+        wrongArr = []
+        for wa in wrongAnswers:
+            wrongArr.append(wa)
+        randomArr = np.random.permutation(len(wrongArr))
+        print(randomArr)
+        for i in randomArr[0:3]:
+            answer.append(wrongArr[i].name)
         
         correctIndex = random.randint(0, 3)
         answer.insert(correctIndex, musicResult.name)
