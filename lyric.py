@@ -6,13 +6,15 @@ import json
 import md5
 import random
 import numpy as np
+from random import choice
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
 SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{hostname}/{databasename}".format(
     username="root",
     password="root",
-    hostname="140.143.12.108",
+    # hostname="123.206.62.140",
+    hostname="localhost",
     databasename="music")
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 299
@@ -48,6 +50,11 @@ class Lyric(db.Model):
     music_id = db.Column(db.String(32))
     artist_id = db.Column(db.Integer)
     sentence = db.Column(db.String(200))
+
+
+@app.route("/hello")
+def hello():
+    return "Hello World!"
 
 
 @app.route("/music", methods=['GET'])
@@ -106,21 +113,21 @@ def add_music():
         return Response(json.dumps(result), mimetype="text/json")
 
 
-@app.route('/spider/artist/add')
-def insertArtists():
-    ids = [1001, 1002, 1003, 2001, 2002, 2003]
-    kind = ['华语', '华语', '华语', '欧美', '欧美', '欧美']
-    sex = ['男', '女', '组合', '男', '女', '组合']
-    for index in range(len(ids)):
-        artists = spider.fetchArtists(ids[index])['artists']
-        for artist in artists:
-            newArtist = Artist(
-                id=artist['id'], name=artist['name'], avatar=artist['img1v1Url'],
-                kind=kind[index], sex=sex[index])
-            db.session.add(newArtist)
-    db.session.commit()
-    db.session.close()
-    return Response(json.loads('{"code": 0}'), mimetype="text/json")
+# @app.route('/spider/artist/add')
+# def insertArtists():
+#     ids = [1001, 1002, 1003, 2001, 2002, 2003]
+#     kind = ['华语', '华语', '华语', '欧美', '欧美', '欧美']
+#     sex = ['男', '女', '组合', '男', '女', '组合']
+#     for index in range(len(ids)):
+#         artists = spider.fetchArtists(ids[index])['artists']
+#         for artist in artists:
+#             newArtist = Artist(
+#                 id=artist['id'], name=artist['name'], avatar=artist['img1v1Url'],
+#                 kind=kind[index], sex=sex[index])
+#             db.session.add(newArtist)
+#     db.session.commit()
+#     db.session.close()
+#     return Response(json.loads('{"code": 0}'), mimetype="text/json")
 
 
 # @app.route('/spider/music/add')
@@ -140,7 +147,7 @@ def insertArtists():
 #     return Response(json.loads('{"code": 0}'), mimetype="text/json")
 
 
-@app.route('/topic')
+@app.route('/topic/type/1')
 def getTopic():
     # 随机选取一个歌词
     sql = "SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(id) FROM {table})-(SELECT MIN(id) FROM {table}))+(SELECT MIN(id) FROM {table})) AS id) AS t2 WHERE t1.id >= t2.id ORDER BY t1.id LIMIT 1;".format(table='lyric')
@@ -169,9 +176,9 @@ def getTopic():
         #     randomMusic = connection.execute(musicSql).first()
         #     print('index: ' + str(index))
         #     answer.append(randomMusic.name)
- 
-        wrongAnswers = db.session.query(Music).filter(Music.artist==artistResult.name, 
-            Music.artist!=musicResult.name).all()
+
+        wrongAnswers = db.session.query(Music).filter(Music.artist == artistResult.name,
+                                                      Music.name != musicResult.name).all()
 
         wrongArr = []
         for wa in wrongAnswers:
@@ -180,7 +187,7 @@ def getTopic():
         print(randomArr)
         for i in randomArr[0:3]:
             answer.append(wrongArr[i].name)
-        
+
         correctIndex = random.randint(0, 3)
         answer.insert(correctIndex, musicResult.name)
 
@@ -192,6 +199,108 @@ def getTopic():
     else:
         topic['error'] = 1
     return Response(json.dumps(topic), mimetype="text/json")
+
+
+@app.route("/topic/type/2")
+def getTopicByArtist():
+    # 随机选取一个歌手
+    r = getRandomArtist()
+    topic = {}
+    if r:
+        print(r.name)
+        # 随机选取这个歌手的一首歌
+        mr = getRandomMusicByArtist(r.name)
+        print(mr.name)
+
+        answer = []
+        wrongAnswers = db.session.query(Music).filter(Music.artist != r.name).all()
+
+        wrongArr = []
+        for wa in wrongAnswers:
+            wrongArr.append(wa)
+
+        # 从列表中随机选择3个元素
+        randomArr = random.sample(wrongArr, 3)
+        print(randomArr)
+        for wa in randomArr:
+            answer.append(wa.name)
+
+        correctIndex = random.randint(0, 3)
+        answer.insert(correctIndex, mr.name)
+
+        topic['question'] = r.name
+        topic['answer'] = answer
+        topic['correctAnswer'] = correctIndex
+        topic['type'] = 2
+        topic['artist'] = r.name
+    else:
+        topic['error'] = 1
+    return Response(json.dumps(topic), mimetype="text/json")
+
+@app.route("/topic/type/3")
+def getTopicByMusic():
+    r = getRandomMusic()
+    topic = {}
+    if r:
+        # 获取歌曲对应的歌手
+        artistResult = db.session.query(Artist).filter(Artist.name == r.artist).first()
+        # 获取所有性别与正确歌手一致的歌手列表
+        wrongAnswers = db.session.query(Artist).filter(Artist.sex == artistResult.sex, 
+            Artist.name != artistResult.name, Artist.kind == artistResult.kind).all()
+        wrongArr = []
+        for wa in wrongAnswers:
+            wrongArr.append(wa)
+
+        answer = []
+        # 从列表中随机选择3个元素
+        randomArr = random.sample(wrongArr, 3)
+        print(randomArr)
+        for wa in randomArr:
+            answer.append(wa.name)
+
+        correctIndex = random.randint(0, 3)
+        answer.insert(correctIndex, r.artist)
+
+        topic['question'] = r.name
+        topic['answer'] = answer
+        topic['correctAnswer'] = correctIndex
+        topic['type'] = 3
+        topic['artist'] = r.artist
+    else:
+        topic['error'] = 1
+    return Response(json.dumps(topic), mimetype="text/json")
+
+def getRandomArtist():
+    """随机选取一个有歌曲的歌手"""
+    # sql = "SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(_id) FROM {table})-(SELECT MIN(_id) FROM {table}))+(SELECT MIN(_id) FROM {table})) AS _id) AS t2 JOIN (SELECT artist FROM music) AS t3 WHERE t1._id >= t2._id AND t1.name = t3.artist ORDER BY t1._id LIMIT 1;".format(table='artist')
+    # return db.engine.execute(sql)
+    sql = 'SELECT * FROM artist WHERE name in (SELECT artist FROM music) ORDER BY _id;'
+    result = db.engine.execute(sql)
+    artistArr = []
+    for a in result:
+        artistArr.append(a)
+    return choice(artistArr)
+
+
+def getRandomMusicByArtist(artistName):
+    """随机选取某个歌手的一首歌"""
+    # sql = "SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(_id) FROM {table})-(SELECT MIN(_id) FROM {table}))+(SELECT MIN(_id) FROM {table})) AS _id) AS t2 WHERE t1._id >= t2._id AND t1.artist = '{artist}' ORDER BY t1._id LIMIT 1;".format(table='music', artist=artistName.encode('utf-8'))
+    # return db.engine.execute(sql)
+    sql = "SELECT * FROM music WHERE artist = '{artist}' ORDER BY _id;:".format(
+        artist=artistName.encode('utf-8'))
+    result = db.engine.execute(sql)
+    musicArr = []
+    for m in result:
+        musicArr.append(m)
+    return choice(musicArr)
+
+def getRandomMusic():
+    """随机选取一首歌"""
+    sql = "SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(_id) FROM {table})-(SELECT MIN(_id) FROM {table}))+(SELECT MIN(_id) FROM {table})) AS _id) AS t2 WHERE t1._id >= t2._id ORDER BY t1._id LIMIT 1;".format(table='music')
+    result = db.engine.execute(sql)
+    for r in result:
+        print(r.name)
+    return r
 
 
 if __name__ == "__main__":
