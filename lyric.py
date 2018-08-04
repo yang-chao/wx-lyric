@@ -147,8 +147,38 @@ def add_music():
 #     return Response(json.loads('{"code": 0}'), mimetype="text/json")
 
 
-@app.route('/topic/type/1')
-def getTopic():
+# 获取问题列表
+@app.route('/topic/list/<int:count>')
+def getTopicList(count):
+    typeList = []
+    for i in range(count):
+        typeList.append(random.randint(1, 3)) # 每次随机从1~3中选取一种类型
+    print(typeList)
+    topicList = []
+    for type in typeList:
+        if type == 1:
+            topicList.append(getTopicByLyric())
+        elif type == 2:
+            topicList.append(getTopicByArtist())
+        elif type == 3:
+            topicList.append(getTopicByMusic())
+        else:
+            pass
+    return Response(json.dumps(topicList), mimetype="text/json")
+
+@app.route('/topic/<int:type>')
+def getTopicByType(type):
+    if type == 1:
+        topic = getTopicByLyric()
+    elif type == 2:
+        topic = getTopicByArtist()
+    elif type == 3:
+        topic = getTopicByMusic()
+    else:
+        return Response('Unsupported type')
+    return Response(json.dumps(topic), mimetype="text/json")
+
+def getTopicByLyric():
     # 随机选取一个歌词
     sql = "SELECT * FROM {table} AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(id) FROM {table})-(SELECT MIN(id) FROM {table}))+(SELECT MIN(id) FROM {table})) AS id) AS t2 WHERE t1.id >= t2.id ORDER BY t1.id LIMIT 1;".format(table='lyric')
     result = db.engine.execute(sql)
@@ -198,10 +228,8 @@ def getTopic():
         topic['artist'] = artistResult.name
     else:
         topic['error'] = 1
-    return Response(json.dumps(topic), mimetype="text/json")
+    return topic
 
-
-@app.route("/topic/type/2")
 def getTopicByArtist():
     # 随机选取一个歌手
     r = getRandomArtist()
@@ -235,9 +263,8 @@ def getTopicByArtist():
         topic['artist'] = r.name
     else:
         topic['error'] = 1
-    return Response(json.dumps(topic), mimetype="text/json")
+    return topic
 
-@app.route("/topic/type/3")
 def getTopicByMusic():
     r = getRandomMusic()
     topic = {}
@@ -268,7 +295,7 @@ def getTopicByMusic():
         topic['artist'] = r.artist
     else:
         topic['error'] = 1
-    return Response(json.dumps(topic), mimetype="text/json")
+    return topic
 
 def getRandomArtist():
     """随机选取一个有歌曲的歌手"""
